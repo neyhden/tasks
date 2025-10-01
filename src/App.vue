@@ -11,12 +11,16 @@
             .join(':')
     }
 
-    let taskId = 1;
     const taskName = ref("")
     const taskEffortHH = ref("")
     const taskEffortMM = ref("")
     const taskEffortSS = ref("")
     const nameref = ref(null)
+
+    let noteId = 0
+
+    let alertId = 0
+    const alerts = ref([])
 
     /*
         name: String with the name of the task
@@ -27,6 +31,7 @@
         interval: Object with the task timer
         active: Wether the task is running or not
     */
+    let taskId = 0;
     const tasks = ref([ ])
 
     const setActiveTask = (task) => {
@@ -44,8 +49,14 @@
     }
 
     const addTask = () => {
-        if (taskName.value === "") return
-        if (taskEffortHH.value === "" && taskEffortMM.value === "" && taskEffortSS.value === "") return
+        if (taskName.value === "") {
+            addAlert("Insert task name")
+            return
+        }
+        if (taskEffortHH.value === "" && taskEffortMM.value === "" && taskEffortSS.value === "") {
+            addAlert("Add some estimated effort")
+            return
+        }
         let effort = Number(taskEffortHH.value) * 3600
         effort += Number(taskEffortMM.value) * 60
         effort += Number(taskEffortSS.value)
@@ -54,8 +65,10 @@
             name: taskName.value,
             effort: effort,
             deadline: "2025:10:02:11:00:00",
-            notes: ["Sample note 1", "Sample note 2",],
+            note: "",
+            notes: [],
             invested: 0,
+            active: false,
         })
         taskName.value = ""
         taskEffortHH.value = ""
@@ -68,6 +81,41 @@
         tasks.value = tasks.value.filter(t => t != task)
     }
 
+    const toggleNotes = (task) => {
+        task.showNotes = !task.showNotes
+    }
+
+    const addNote = (task) => {
+        task.notes.push({
+            id: noteId++,
+            text: task.note,
+        })
+        task.note = ""
+    }
+
+    const removeNote = (task, note) => {
+        task.notes = task.notes.filter(n => n != note)
+    }
+
+    const exportData = () => {
+        let data = {
+            tasks: tasks.value,
+        }
+        const dataString = JSON.stringify(data, null, 2)
+        navigator.clipboard.writeText(dataString)
+        addAlert("Copied!")
+    }
+
+    const addAlert = (text) => {
+        alerts.value.push({
+            value: text,
+            id: alertId++,
+        })
+        setTimeout(() => {
+            alerts.value.shift()
+        }, 2000)
+    }
+
     onMounted(() => {
         nameref.value.focus()
     })
@@ -76,34 +124,68 @@
 
 <template>
 
+    <div class="alerts">
+        <TransitionGroup tag="div" name="fade" class="container">
+            <div v-for="alert in alerts" class="alert" :key="alert.id">
+                {{ alert.value }}
+            </div>
+        </TransitionGroup>
+    </div>
+
+    <p>
+        <a tabindex="-1" href="https://github.com/neyhden/tasks">
+            <img class="upper-icon" src="./assets/github.svg" alt="GitHub">
+        </a>
+        <button tabindex="-1" @click="exportData">
+            <img class="upper-icon" src="./assets/download.svg" alt="Export">
+        </button>
+    </p>
+
     <TransitionGroup tag="div" name="fade" class="container">
-        <div v-for="task in tasks" :key="task.id" class="task" @click="clickedTask(task)">
-            <div>
-                <span>{{ task.name }}</span>
-                <span :class="task.active ? 'running' : 'stopped'">
-                    {{ task.active ? "- Running" : "- Stopped" }}
-                </span>
-            </div>
-            <div>
-                <button tabindex="-1">
-                    <span>NOTES </span>
-                    <img class="bin-img" src="./note.svg" alt="[]">
+        <div v-for="task in tasks" :key="task.id">
+            <div class="task">
+                <button tabindex="-1" @click="clickedTask(task)">
+                    <span>{{ task.name }}</span>
+                    <span :class="task.active ? 'running' : 'stopped'">
+                        {{ task.active ? "- Running" : "- Stopped" }}
+                    </span>
                 </button>
+                <div>
+                    <button @click="toggleNotes(task)" tabindex="-1">
+                        <span>NOTES </span>
+                        <img class="bin-img" src="./assets/note.svg" alt="[]">
+                    </button>
+                </div>
+                <div>
+                    <span :class="task.invested > task.effort ? 'overtime' : ''">
+                        {{ secToFormat(task.invested) }}
+                    </span>
+                    <span class="time-divider">/</span>
+                    <span :class="task.invested > task.effort ? 'overtime' : ''">
+                        {{ secToFormat(task.effort) }}
+                    </span>
+                    <button tabindex="-1" class="bin" @click="removeTask(task)">
+                        <span>DELETE </span>
+                        <img class="bin-img" src="./assets/bin.svg" alt="X">
+                    </button>
+                </div>
             </div>
-            <div>
-                <span :class="task.invested > task.effort ? 'overtime' : ''">
-                    {{ secToFormat(task.invested) }}
-                </span>
-                <span class="time-divider">/</span>
-                <span :class="task.invested > task.effort ? 'overtime' : ''">
-                    {{ secToFormat(task.effort) }}
-                </span>
-                <button tabindex="-1" class="bin" @click="removeTask(task)">
-                    <span>DELETE </span>
-                    <img class="bin-img" src="./bin.svg" alt="X">
-                </button>
+            <div v-if="task.showNotes" class="notes">
+                <ul>
+                    <li v-for="note in task.notes">
+                        <button tabindex="-1" class="bin" @click="removeNote(task, note)">
+                            <img class="bin-img" src="./assets/bin.svg" alt="X">
+                        </button>
+                        <span>
+                            {{ note.text }}
+                        </span>
+                    </li>
+                    <hr v-if="task.notes.length !== 0">
+                    <textarea @keyup.enter="addNote(task)" placeholder="Add note" v-model="task.note" />
+                </ul>
             </div>
         </div>
+
         <div class="task">
             <div>
                 <input ref="nameref" @keyup.enter="addTask" v-model="taskName" placeholder="New task name">
@@ -164,8 +246,36 @@
         text-align: center;
     }
 
+    textarea {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        outline: none;
+        box-shadow: none;
+        color: white;
+        border-radius: 10px;
+        font-size: 18px;
+        padding: 0px 20px 0px 20px;
+        width: 90%;
+    }
+
     time-input {
         width: 50px;
+    }
+
+    .alerts {
+        position: absolute;
+        left: 40%;
+        right: 40%;
+        display: flex;
+        flex-direction: column;
+    }
+    .alert {
+        text-align: center;
+        font-weight: bolder;
+        background: #ffaa77;
+        border-radius: 100px;
+        color: black;
+        margin: 5px 0px 5px 0px;
     }
 
     .task {
@@ -180,6 +290,12 @@
     }
     .task:hover {
         background: rgba(255, 255, 255, 0.15);
+    }
+
+    .notes {
+        background: rgba(255, 255, 255, 0.10);
+        border-radius: 0px 0px 15px 15px;
+        padding: 10px;
     }
 
     .add-button {
@@ -215,6 +331,10 @@
         top: 3px;
         color: #ff2020;
         height: 20px;
+    }
+
+    .upper-icon {
+        height: 40px;
     }
 
     /* Thank you vue examples */
