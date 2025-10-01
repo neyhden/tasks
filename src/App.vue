@@ -1,6 +1,6 @@
 <script setup>
 
-    import { ref } from "vue"
+    import { ref, onMounted } from "vue"
 
     const secToFormat = (sec) => {
         const s = sec % 60
@@ -27,18 +27,7 @@
         interval: Object with the task timer
         active: Wether the task is running or not
     */
-    const tasks = ref([
-        {
-            id: 0,
-            name: "Sample task",
-            effort: 3600,
-            deadline: "2025:10:02:11:00:00",
-            notes: ["Sample note 1", "Sample note 2",],
-            invested: 0,
-            interval: null,
-            active: false,
-        }
-    ])
+    const tasks = ref([ ])
 
     const setActiveTask = (task) => {
         activeTask.value = task.id
@@ -56,6 +45,7 @@
 
     const addTask = () => {
         if (taskName.value === "") return
+        if (taskEffortHH.value === "" && taskEffortMM.value === "" && taskEffortSS.value === "") return
         let effort = Number(taskEffortHH.value) * 3600
         effort += Number(taskEffortMM.value) * 60
         effort += Number(taskEffortSS.value)
@@ -78,6 +68,10 @@
         tasks.value = tasks.value.filter(t => t != task)
     }
 
+    onMounted(() => {
+        nameref.value.focus()
+    })
+
 </script>
 
 <template>
@@ -91,10 +85,21 @@
                 </span>
             </div>
             <div>
-                <span :class="task.invested > task.effort ? 'overtime' : ''">{{ secToFormat(task.invested) }}</span>
+                <button tabindex="-1">
+                    <span>NOTES </span>
+                    <img class="bin-img" src="./note.svg" alt="[]">
+                </button>
+            </div>
+            <div>
+                <span :class="task.invested > task.effort ? 'overtime' : ''">
+                    {{ secToFormat(task.invested) }}
+                </span>
                 <span class="time-divider">/</span>
-                <span :class="task.invested > task.effort ? 'overtime' : ''">{{ secToFormat(task.effort) }}</span>
-                <button class="bin" @click="removeTask(task)">
+                <span :class="task.invested > task.effort ? 'overtime' : ''">
+                    {{ secToFormat(task.effort) }}
+                </span>
+                <button tabindex="-1" class="bin" @click="removeTask(task)">
+                    <span>DELETE </span>
                     <img class="bin-img" src="./bin.svg" alt="X">
                 </button>
             </div>
@@ -104,12 +109,16 @@
                 <input ref="nameref" @keyup.enter="addTask" v-model="taskName" placeholder="New task name">
             </div>
             <div>
-                <input size="1" maxlength="2" class="time-input" @keyup.enter="addTask" v-model="taskEffortHH" placeholder="HH">
-                <span class="time-divider"> : </span>
-                <input size="1" maxlength="2" class="time-input" @keyup.enter="addTask" v-model="taskEffortMM" placeholder="MM">
-                <span class="time-divider"> : </span>
-                <input size="1" maxlength="2" class="time-input" @keyup.enter="addTask" v-model="taskEffortSS" placeholder="SS">
-                <button @click="addTask" class="add-button">+</button>
+                <span>Estimated effort: </span>
+                <input size="1" maxlength="2" class="time-input"
+                    @keyup.enter="addTask" v-model="taskEffortHH" placeholder="HH">
+                <span> : </span>
+                <input size="1" maxlength="2" class="time-input"
+                    @keyup.enter="addTask" v-model="taskEffortMM" placeholder="MM">
+                <span> : </span>
+                <input size="1" maxlength="2" class="time-input"
+                    @keyup.enter="addTask" v-model="taskEffortSS" placeholder="SS">
+                <button tabindex="-1" @click="addTask" class="add-button">+</button>
             </div>
         </div>
     </TransitionGroup>
@@ -131,13 +140,16 @@
         outline: none;
         border: none;
         border-radius: 5px;
-        transition-duration: 0.2s
+        transition-duration: 0.2s;
+        color: white;
+        font-size: unset;
+        user-select: none;
     }
     button:hover {
         background: rgba(255, 255, 255, 0.1);
     }
     button:focus {
-        border: 1px solid;
+        border: none;
     }
 
     input {
@@ -147,8 +159,9 @@
         box-shadow: none;
         color: white;
         border-radius: 100px;
-        font-size: 24px;
+        font-size: 18px;
         padding: 0px 20px 0px 20px;
+        text-align: center;
     }
 
     time-input {
@@ -160,7 +173,7 @@
         transition-duration: 100ms;
         border-radius: 10px;
         margin: 5px 0px 5px 0px;
-        padding: 2px 10px 2px 10px;
+        padding: 2px 20px 2px 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -199,11 +212,12 @@
     }
     .bin-img {
         position: relative;
-        top: 2px;
+        top: 3px;
         color: #ff2020;
         height: 20px;
     }
 
+    /* Thank you vue examples */
     /* 1. declare transition */
     .fade-move,
     .fade-enter-active,
@@ -212,16 +226,22 @@
     }
 
     /* 2. declare enter from and leave to state */
-    .fade-enter-from,
-    .fade-leave-to {
+    .fade-enter-from {
       opacity: 0;
-      transform: scaleY(0.01) scaleX(0.01);
+      transform: translate(0, 30px);
+    }
+    .fade-leave-to {
+        opacity: 0;
+        transform: translate(0, -30px);
+
     }
 
     /* 3. ensure leaving items are taken out of layout flow so that moving
           animations can be calculated correctly. */
     .fade-leave-active {
-      position: absolute;
+        position: absolute;
+        right: 10px;
+        left: 10px;
     }
 
 </style>
